@@ -1,325 +1,193 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+// ─── i18n ─────────────────────────────────────────────────────────────────────
+const T = {
+  en: {
+    appTitle: "POSTURE & POWER",
+    appSub: "APT Correction · Chest Expander · Home Training",
+    nav: { dashboard: "Dashboard", program: "Program", calendar: "Calendar", photos: "Progress", badges: "Badges" },
+    dashboard: { streak: "Day Streak", today: "Today", remaining: "Left", core: "Core & Posture", upper: "Upper Body", reset: "Reset Today" },
+    program: { day1: "Day 1 — Pull & Core", day2: "Day 2 — Push & Stability", addExercise: "+ Add Exercise", sets: "Sets", reps: "Reps", springs: "Springs", whyLabel: "WHY IT MATTERS", watchDemo: "Watch Demo", vacuumTitle: "Vacuum Hold Timer", vacuumSub: "20-second morning routine", breatheOut: "Breathe Out & Draw Navel In", holdVacuum: "HOLD THE VACUUM", release: "Release", ready: "Ready", complete: "Complete! 🔥", start: "▶ Start", pause: "⏸ Pause", resetBtn: "↺ Reset", springsToday: "🌀 Springs Today", tapToLog: "Tap to log", logged: "springs logged" },
+    calendar: { title: "Training Calendar", completed: "Completed", missed: "Missed", rest: "Rest", completionRate: "Completion Rate", thisMonth: "This Month" },
+    photos: { title: "Progress Photos", upload: "Upload Today's Photo", uploadHint: "Tap to select photo", compare: "Compare", noPhoto: "No photo yet", today: "Today", previous: "Previous" },
+    badges: { title: "Achievements", locked: "Locked", earned: "Earned" },
+    addModal: { title: "Add Exercise", name: "Exercise Name", target: "Target Muscle", sets: "Sets", reps: "Reps", why: "Why it matters", save: "Save", cancel: "Cancel" },
+    vacuumSteps: ["Exhale fully & draw navel to spine", "Hold without breathing for 20s", "Slowly release & inhale"],
+  },
+  tr: {
+    appTitle: "DURUŞ & GÜÇ",
+    appSub: "APT Düzeltme · Göğüs Genişletici · Ev Antremanı",
+    nav: { dashboard: "Panel", program: "Program", calendar: "Takvim", photos: "İlerleme", badges: "Rozetler" },
+    dashboard: { streak: "Gün Serisi", today: "Bugün", remaining: "Kaldı", core: "Çekirdek & Duruş", upper: "Üst Vücut", reset: "Bugünü Sıfırla" },
+    program: { day1: "Gün 1 — Çekiş & Çekirdek", day2: "Gün 2 — İtiş & Denge", addExercise: "+ Egzersiz Ekle", sets: "Set", reps: "Tekrar", springs: "Yay", whyLabel: "NEDEN ÖNEMLİ", watchDemo: "Demo İzle", vacuumTitle: "Vakum Tutma Sayacı", vacuumSub: "20 saniyelik sabah rutini", breatheOut: "Nefes Ver & Göbeği İçe Çek", holdVacuum: "VAKUMU TUT", release: "Bırak", ready: "Hazır", complete: "Tamamlandı! 🔥", start: "▶ Başla", pause: "⏸ Duraklat", resetBtn: "↺ Sıfırla", springsToday: "🌀 Bugünkü Yay", tapToLog: "Kaydetmek için tıkla", logged: "yay kaydedildi" },
+    calendar: { title: "Antrenman Takvimi", completed: "Tamamlandı", missed: "Kaçırıldı", rest: "Dinlenme", completionRate: "Tamamlanma Oranı", thisMonth: "Bu Ay" },
+    photos: { title: "İlerleme Fotoğrafları", upload: "Bugünkü Fotoğrafı Yükle", uploadHint: "Fotoğraf seçmek için tıkla", compare: "Karşılaştır", noPhoto: "Henüz fotoğraf yok", today: "Bugün", previous: "Önceki" },
+    badges: { title: "Başarılar", locked: "Kilitli", earned: "Kazanıldı" },
+    addModal: { title: "Egzersiz Ekle", name: "Egzersiz Adı", target: "Hedef Kas", sets: "Set", reps: "Tekrar", why: "Neden önemli", save: "Kaydet", cancel: "İptal" },
+    vacuumSteps: ["Tamamen nefes ver, göbeği omurgaya doğru çek", "20 saniye nefes almadan tut", "Yavaşça bırak ve nefes al"],
+  },
+};
 
-const EXERCISES = {
-  core: [
-    {
-      id: "dead-bug",
-      title: "Dead Bug",
-      target: "Deep Core (TVA) + Hip Flexors",
-      why: "Activates the transverse abdominis — your internal 'weight belt' — while teaching your spine to stay neutral. Directly counteracts anterior pelvic tilt by strengthening the muscles that pull your pelvis back into alignment.",
-      sets: "3 sets × 8 reps/side",
-      youtubeId: "g_BYB0R-4Ws",
-      hasSpringCounter: false,
-      color: "#00D4AA",
-    },
-    {
-      id: "stomach-vacuum",
-      title: "Stomach Vacuum",
-      target: "Transverse Abdominis (TVA)",
-      why: "The most direct TVA isolation exercise known. A strong TVA cinches your waist, reduces the 'false belly' bloat caused by weak core compression, and dramatically reduces lower back load by stabilizing L4–L5.",
-      sets: "5 × 20-second holds",
-      youtubeId: "KZrGQ8YPpbY",
-      hasSpringCounter: false,
-      isVacuum: true,
-      color: "#FF6B35",
-    },
-    {
-      id: "bird-dog",
-      title: "Bird-Dog",
-      target: "Erector Spinae + Glutes + TVA",
-      why: "Trains spinal extension stability without compressive load. Simultaneously activates glutes and contralateral erectors — the exact pattern needed to correct APT, where weak glutes and erectors allow the pelvis to tip forward.",
-      sets: "3 sets × 10 reps/side",
-      youtubeId: "wiFNA3sqjCA",
-      hasSpringCounter: false,
-      color: "#A78BFA",
-    },
-    {
-      id: "glute-bridge",
-      title: "Glute Bridge",
-      target: "Glutes + Hamstrings + Lumbar",
-      why: "Directly targets the gluteus maximus — chronically inhibited in APT sufferers due to prolonged sitting. Restores the hip extension strength needed to pull the pelvis into posterior tilt and decompress the lumbar spine.",
-      sets: "3 sets × 15 reps",
-      youtubeId: "OUgsJ8-Vi0E",
-      hasSpringCounter: false,
-      color: "#F59E0B",
-    },
+const DEFAULT_PROGRAM = {
+  day1: [
+    { id: "chest-pull", title: { en: "Chest Expander Pull", tr: "Göğüs Genişletici Çekiş" }, target: { en: "Rhomboids + Rear Delts + Mid Traps", tr: "Romboidler + Arka Deltoid + Orta Trapez" }, why: { en: "Directly strengthens scapular retractors — the muscles that pull your shoulders back and fix forward-rounded posture.", tr: "Kürek kemiği geri çekicilerini güçlendirir — omuzları geriye çeken ve öne eğik duruşu düzelten kaslar." }, sets: 4, reps: 15, youtubeId: "dQw4w9WgXcQ", hasSpring: true, color: "#00D4AA", isDefault: true },
+    { id: "face-pull", title: { en: "Face Pull", tr: "Yüz Çekişi" }, target: { en: "Rear Delts + External Rotators", tr: "Arka Deltoid + Dış Rotatorlar" }, why: { en: "Restores shoulder external rotation — essential for pain-free pressing and fixing rounded shoulders.", tr: "Omuz dış rotasyonunu geri kazandırır — ağrısız itme hareketleri ve yuvarlak omuzları düzeltmek için şart." }, sets: 4, reps: 20, youtubeId: "V8dZ3pyiCBo", hasSpring: true, color: "#FF6B35", isDefault: true },
+    { id: "dead-bug", title: { en: "Dead Bug", tr: "Ölü Böcek" }, target: { en: "Deep Core (TVA) + Hip Flexors", tr: "Derin Çekirdek (TVA) + Kalça Fleksörleri" }, why: { en: "Activates the transverse abdominis — your internal weight belt — while keeping the spine neutral against APT.", tr: "Transversus abdominis'i aktive eder — omurgayı nötral tutarak APT'ye karşı iç korset görevi görür." }, sets: 3, reps: 8, youtubeId: "g_BYB0R-4Ws", hasSpring: false, color: "#A78BFA", isDefault: true },
+    { id: "stomach-vacuum", title: { en: "Stomach Vacuum", tr: "Mide Vakumu" }, target: { en: "Transverse Abdominis (TVA)", tr: "Transversus Abdominis (TVA)" }, why: { en: "The most direct TVA isolation. Reduces false belly bloat and dramatically lowers lumbar load at L4-L5.", tr: "En doğrudan TVA izolasyonu. Sahte karın şişliğini azaltır ve L4-L5 bel yükünü dramatik şekilde düşürür." }, sets: 5, reps: 1, youtubeId: "KZrGQ8YPpbY", hasSpring: false, color: "#F59E0B", isVacuum: true, isDefault: true },
   ],
-  upper: [
-    {
-      id: "chest-pull",
-      title: "Chest Expander Pull",
-      target: "Rhomboids + Rear Deltoids + Mid Traps",
-      why: "The foundational posture corrector. Directly strengthens the scapular retractors — the muscles that pull your shoulders back. Counteracts the forward-rounded posture from desk work and phone use that collapses the chest and tightens pecs.",
-      sets: "4 sets × 15 reps",
-      youtubeId: "dQw4w9WgXcQ",
-      hasSpringCounter: true,
-      color: "#00D4AA",
-    },
-    {
-      id: "face-pull",
-      title: "Face Pull (Expander)",
-      target: "Rear Deltoids + External Rotators + Upper Traps",
-      why: "Targets the posterior deltoid and infraspinatus. These muscles are almost always weak in people with APT and forward head posture. Face pulls restore shoulder external rotation — the key to pain-free pressing movements.",
-      sets: "4 sets × 20 reps",
-      youtubeId: "V8dZ3pyiCBo",
-      hasSpringCounter: true,
-      color: "#FF6B35",
-    },
-    {
-      id: "overhead-press",
-      title: "Overhead Press (Expander)",
-      target: "Anterior Deltoids + Triceps + Serratus Anterior",
-      why: "Builds vertical pushing strength without a barbell. The serratus anterior — activated during full overhead lock-out — is critical for scapular upward rotation, preventing shoulder impingement as you build strength.",
-      sets: "3 sets × 12 reps",
-      youtubeId: "M2rwvNhTdu4",
-      hasSpringCounter: true,
-      color: "#A78BFA",
-    },
-    {
-      id: "bicep-curl",
-      title: "Bicep Curl (Expander)",
-      target: "Biceps Brachii + Brachialis + Forearms",
-      why: "Constant tension through the full ROM — unlike free weights, the expander maintains peak load at full contraction. The long head of the biceps also assists in shoulder flexion, contributing to postural balance around the glenohumeral joint.",
-      sets: "3 sets × 12 reps",
-      youtubeId: "ykJmrZ5v0Oo",
-      hasSpringCounter: true,
-      color: "#F59E0B",
-    },
+  day2: [
+    { id: "overhead-press", title: { en: "Overhead Press", tr: "Baş Üstü Pres" }, target: { en: "Anterior Delts + Triceps + Serratus", tr: "Ön Deltoid + Triseps + Serratus" }, why: { en: "Builds vertical push strength. Serratus anterior activation during lockout prevents shoulder impingement.", tr: "Dikey itme gücü inşa eder. Kilit noktasında serratus anterior aktivasyonu omuz sıkışmasını önler." }, sets: 3, reps: 12, youtubeId: "M2rwvNhTdu4", hasSpring: true, color: "#00D4AA", isDefault: true },
+    { id: "bicep-curl", title: { en: "Bicep Curl", tr: "Biceps Kıvırma" }, target: { en: "Biceps + Brachialis + Forearms", tr: "Biceps + Brachialis + Önkol" }, why: { en: "Constant tension through full ROM. Unlike free weights, the expander maintains peak load at full contraction.", tr: "Tam hareket boyunca sabit gerilim. Serbest ağırlıkların aksine, genişletici tam kasılmada zirve yükü korur." }, sets: 3, reps: 12, youtubeId: "ykJmrZ5v0Oo", hasSpring: true, color: "#FF6B35", isDefault: true },
+    { id: "bird-dog", title: { en: "Bird-Dog", tr: "Kuş-Köpek" }, target: { en: "Erector Spinae + Glutes + TVA", tr: "Erektör Spina + Gluteus + TVA" }, why: { en: "Trains spinal extension stability without compression. Activates glutes and erectors to correct APT.", tr: "Kompresyon olmadan omurga uzanma stabilitesini eğitir. Gluteus ve erektörleri aktive ederek APT'yi düzeltir." }, sets: 3, reps: 10, youtubeId: "wiFNA3sqjCA", hasSpring: false, color: "#A78BFA", isDefault: true },
+    { id: "glute-bridge", title: { en: "Glute Bridge", tr: "Gluteus Köprüsü" }, target: { en: "Glutes + Hamstrings + Lumbar", tr: "Gluteus + Hamstring + Bel" }, why: { en: "Directly targets gluteus maximus — chronically inhibited in APT. Restores hip extension to decompress the lumbar spine.", tr: "APT'de kronik olarak inhibe olan gluteus maximusu doğrudan hedefler. Beli dekomprese eder." }, sets: 3, reps: 15, youtubeId: "OUgsJ8-Vi0E", hasSpring: false, color: "#F59E0B", isDefault: true },
   ],
 };
 
-const ALL_EXERCISE_IDS = [...EXERCISES.core, ...EXERCISES.upper].map((e) => e.id);
+const BADGE_DEFS = [
+  { id: "first-day", icon: "🌱", en: "First Step", tr: "İlk Adım", descEn: "Complete your first workout", descTr: "İlk antremanını tamamla", check: (s) => s.totalCompleted >= 1 },
+  { id: "week-streak", icon: "🔥", en: "Week Warrior", tr: "Hafta Savaşçısı", descEn: "7-day streak", descTr: "7 günlük seri", check: (s) => s.streak >= 7 },
+  { id: "month-streak", icon: "💎", en: "Iron Will", tr: "Demir İrade", descEn: "30-day streak", descTr: "30 günlük seri", check: (s) => s.streak >= 30 },
+  { id: "photo-first", icon: "📸", en: "Photographer", tr: "Fotoğrafçı", descEn: "Upload your first progress photo", descTr: "İlk ilerleme fotoğrafını yükle", check: (s) => s.photoCount >= 1 },
+  { id: "photo-week", icon: "🎞️", en: "Chronicler", tr: "Kayıt Tutucusu", descEn: "Upload 7 progress photos", descTr: "7 ilerleme fotoğrafı yükle", check: (s) => s.photoCount >= 7 },
+  { id: "ten-days", icon: "⚡", en: "Momentum", tr: "Momentum", descEn: "Complete 10 total workouts", descTr: "10 antremanı tamamla", check: (s) => s.totalCompleted >= 10 },
+  { id: "custom-ex", icon: "✏️", en: "Creator", tr: "Yaratıcı", descEn: "Add a custom exercise", descTr: "Özel egzersiz ekle", check: (s) => s.customExCount >= 1 },
+  { id: "both-days", icon: "🏆", en: "Full Program", tr: "Tam Program", descEn: "Complete both Day 1 and Day 2", descTr: "Hem Gün 1 hem Gün 2'yi tamamla", check: (s) => s.completedDay1 && s.completedDay2 },
+];
 
-function getTodayKey() {
-  return new Date().toISOString().split("T")[0];
+function getTodayKey() { return new Date().toISOString().split("T")[0]; }
+
+function getInitialData() {
+  return { lang: "en", streak: 0, lastDate: null, totalCompleted: 0, completedDay1: false, completedDay2: false, completed: {}, springs: {}, program: DEFAULT_PROGRAM, calendarLog: {}, photos: {}, earnedBadges: [], photoCount: 0, customExCount: 0 };
 }
 
-function loadStorage() {
-  try {
-    const today = getTodayKey();
-    const raw = localStorage.getItem("posture_power_v2");
-    const data = raw ? JSON.parse(raw) : {};
-    if (data.date !== today) {
-      return {
-        date: today,
-        completed: {},
-        springs: data.springs || {},
-        streak: calculateStreak(data),
-        lastCompletedDate: data.lastCompletedDate || null,
-      };
-    }
-    return data;
-  } catch {
-    return { date: getTodayKey(), completed: {}, springs: {}, streak: 0, lastCompletedDate: null };
-  }
+function loadData() {
+  try { const raw = localStorage.getItem("pp_v3"); return raw ? JSON.parse(raw) : getInitialData(); }
+  catch { return getInitialData(); }
 }
 
-function calculateStreak(data) {
-  if (!data.lastCompletedDate) return data.streak || 0;
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yKey = yesterday.toISOString().split("T")[0];
-  if (data.lastCompletedDate === yKey || data.lastCompletedDate === getTodayKey()) {
-    return data.streak || 0;
-  }
-  return 0;
-}
-
-function saveStorage(state) {
-  try {
-    localStorage.setItem("posture_power_v2", JSON.stringify(state));
-  } catch {}
-}
+function save(data) { try { localStorage.setItem("pp_v3", JSON.stringify(data)); } catch {} }
 
 // ─── VACUUM TIMER ─────────────────────────────────────────────────────────────
-
-function VacuumTimer() {
+function VacuumTimer({ t }) {
   const [active, setActive] = useState(false);
   const [time, setTime] = useState(20);
-  const [phase, setPhase] = useState("idle"); // idle | inhale | hold | exhale | done
-  const intervalRef = useRef(null);
-
+  const [phase, setPhase] = useState("idle");
+  const ref = useRef(null);
   const TOTAL = 20;
 
   useEffect(() => {
-    if (active && time > 0) {
-      intervalRef.current = setInterval(() => setTime((t) => t - 1), 1000);
-    } else if (time === 0) {
-      setPhase("done");
-      setActive(false);
-    }
-    return () => clearInterval(intervalRef.current);
+    if (active && time > 0) { ref.current = setInterval(() => setTime(p => p - 1), 1000); }
+    else if (time === 0) { setPhase("complete"); setActive(false); }
+    return () => clearInterval(ref.current);
   }, [active, time]);
 
-  useEffect(() => {
-    if (!active) return;
-    if (time > 17) setPhase("inhale");
-    else if (time > 0) setPhase("hold");
-  }, [time, active]);
+  useEffect(() => { if (!active) return; setPhase(time > 17 ? "breatheOut" : "hold"); }, [time, active]);
 
-  const start = () => {
-    setTime(TOTAL);
-    setPhase("inhale");
-    setActive(true);
-  };
+  const start = () => { setTime(TOTAL); setPhase("breatheOut"); setActive(true); };
+  const reset = () => { setActive(false); setTime(TOTAL); setPhase("idle"); clearInterval(ref.current); };
 
-  const reset = () => {
-    setActive(false);
-    setTime(TOTAL);
-    setPhase("idle");
-  };
-
-  const progress = ((TOTAL - time) / TOTAL) * 100;
-  const circumference = 2 * Math.PI * 54;
-  const strokeDash = (progress / 100) * circumference;
-
-  const phaseColors = { idle: "#4B5563", inhale: "#00D4AA", hold: "#FF6B35", exhale: "#A78BFA", done: "#00D4AA" };
-  const phaseLabels = { idle: "Ready", inhale: "Breathe Out & Pull In", hold: "HOLD THE VACUUM", exhale: "Release", done: "Complete! 🔥" };
+  const C = 2 * Math.PI * 54;
+  const pct = ((TOTAL - time) / TOTAL) * 100;
+  const colors = { idle: "#4B5563", breatheOut: "#00D4AA", hold: "#FF6B35", complete: "#00D4AA" };
+  const labels = { idle: t.program.ready, breatheOut: t.program.breatheOut, hold: t.program.holdVacuum, complete: t.program.complete };
 
   return (
-    <div className="vacuum-timer-card">
-      <div className="vacuum-header">
-        <span className="vacuum-icon">🫁</span>
+    <div style={{ background: "#0D1117", border: "1px solid #FF6B3530", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <span style={{ fontSize: "1.75rem" }}>🫁</span>
         <div>
-          <h3 className="vacuum-title">Vacuum Hold Timer</h3>
-          <p className="vacuum-sub">20-second morning routine</p>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1.05rem" }}>{t.program.vacuumTitle}</div>
+          <div style={{ fontSize: "0.68rem", color: "#6B7280", fontFamily: "monospace" }}>{t.program.vacuumSub}</div>
         </div>
       </div>
-
-      <div className="vacuum-ring-container">
-        <svg viewBox="0 0 120 120" className="vacuum-svg">
+      <div style={{ position: "relative", width: 110, height: 110, alignSelf: "center" }}>
+        <svg viewBox="0 0 120 120" style={{ width: "100%", height: "100%" }}>
           <circle cx="60" cy="60" r="54" fill="none" stroke="#1F2937" strokeWidth="8" />
-          <circle
-            cx="60" cy="60" r="54"
-            fill="none"
-            stroke={phaseColors[phase]}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={`${strokeDash} ${circumference}`}
-            transform="rotate(-90 60 60)"
-            style={{ transition: "stroke-dasharray 1s linear, stroke 0.3s ease" }}
-          />
+          <circle cx="60" cy="60" r="54" fill="none" stroke={colors[phase]} strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={`${(pct / 100) * C} ${C}`} transform="rotate(-90 60 60)"
+            style={{ transition: "stroke-dasharray 1s linear, stroke 0.3s ease" }} />
         </svg>
-        <div className="vacuum-center">
-          <div className="vacuum-time" style={{ color: phaseColors[phase] }}>{time}</div>
-          <div className="vacuum-unit">sec</div>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: "2.2rem", color: colors[phase], lineHeight: 1 }}>{time}</span>
+          <span style={{ fontSize: "0.6rem", color: "#6B7280", fontFamily: "monospace" }}>sec</span>
         </div>
       </div>
-
-      <div className="vacuum-phase-label" style={{ color: phaseColors[phase] }}>
-        {phaseLabels[phase]}
+      <div style={{ textAlign: "center", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "0.95rem", color: colors[phase], minHeight: "1.2rem" }}>{labels[phase]}</div>
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        {!active && phase !== "complete" && <button onClick={start} style={{ flex: 1, padding: "0.55rem", background: "#FF6B35", border: "none", borderRadius: 8, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "0.95rem", color: "#000", cursor: "pointer" }}>{t.program.start}</button>}
+        {active && <button onClick={() => setActive(false)} style={{ flex: 1, padding: "0.55rem", background: "#374151", border: "none", borderRadius: 8, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "0.95rem", color: "#fff", cursor: "pointer" }}>{t.program.pause}</button>}
+        <button onClick={reset} style={{ padding: "0.55rem 0.85rem", background: "#1F2937", border: "1px solid #374151", borderRadius: 8, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "0.95rem", color: "#9CA3AF", cursor: "pointer" }}>{t.program.resetBtn}</button>
       </div>
-
-      <div className="vacuum-btn-row">
-        {!active && phase !== "done" && (
-          <button className="vac-btn vac-btn-start" onClick={start}>
-            {phase === "idle" ? "▶ Start Hold" : "▶ Resume"}
-          </button>
-        )}
-        {active && (
-          <button className="vac-btn vac-btn-pause" onClick={() => setActive(false)}>⏸ Pause</button>
-        )}
-        <button className="vac-btn vac-btn-reset" onClick={reset}>↺ Reset</button>
-      </div>
-
-      <div className="vacuum-steps">
-        <div className="vacuum-step"><span className="step-dot" style={{ background: "#00D4AA" }} />Exhale fully & draw navel to spine</div>
-        <div className="vacuum-step"><span className="step-dot" style={{ background: "#FF6B35" }} />Hold without breathing for 20s</div>
-        <div className="vacuum-step"><span className="step-dot" style={{ background: "#A78BFA" }} />Slowly release & inhale</div>
-      </div>
-    </div>
-  );
-}
-
-// ─── SPRING COUNTER ───────────────────────────────────────────────────────────
-
-function SpringCounter({ exerciseId, value, onChange }) {
-  return (
-    <div className="spring-counter">
-      <span className="spring-label">🌀 Springs Today</span>
-      <div className="spring-controls">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            className={`spring-btn ${value === n ? "active" : ""}`}
-            onClick={() => onChange(exerciseId, n)}
-          >
-            {n}
-          </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+        {t.vacuumSteps.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.72rem", color: "#6B7280" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: ["#00D4AA", "#FF6B35", "#A78BFA"][i], flexShrink: 0, display: "inline-block" }} />{s}
+          </div>
         ))}
       </div>
-      <span className="spring-hint">{value ? `${value} spring${value > 1 ? "s" : ""} logged` : "Tap to log"}</span>
     </div>
   );
 }
 
 // ─── EXERCISE CARD ────────────────────────────────────────────────────────────
-
-function ExerciseCard({ exercise, completed, springs, onToggle, onSpringChange }) {
-  const [expanded, setExpanded] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
+function ExerciseCard({ ex, lang, t, completed, springs, onToggle, onSpring, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const [video, setVideo] = useState(false);
+  const title = typeof ex.title === "object" ? ex.title[lang] : ex.title;
+  const target = typeof ex.target === "object" ? ex.target[lang] : ex.target;
+  const why = typeof ex.why === "object" ? ex.why[lang] : ex.why;
 
   return (
-    <div className={`exercise-card ${completed ? "completed" : ""}`} style={{ "--card-accent": exercise.color }}>
-      <div className="card-header" onClick={() => setExpanded(!expanded)}>
-        <div className="card-left">
-          <button
-            className={`check-btn ${completed ? "checked" : ""}`}
-            onClick={(e) => { e.stopPropagation(); onToggle(exercise.id); }}
-            style={{ "--btn-color": exercise.color }}
-          >
+    <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderLeft: `3px solid ${ex.color}`, borderRadius: 12, overflow: "hidden", opacity: completed ? 0.72 : 1, transition: "opacity 0.2s" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", cursor: "pointer", gap: "0.75rem" }} onClick={() => setOpen(o => !o)}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", flex: 1, minWidth: 0 }}>
+          <button onClick={e => { e.stopPropagation(); onToggle(ex.id); }}
+            style={{ width: 30, height: 30, borderRadius: 7, border: `2px solid ${ex.color}`, background: completed ? ex.color : "transparent", color: completed ? "#000" : ex.color, fontWeight: 800, fontSize: "0.95rem", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
             {completed ? "✓" : ""}
           </button>
-          <div className="card-info">
-            <h3 className="card-title" style={{ color: completed ? "#6B7280" : "#F9FAFB" }}>
-              {exercise.title}
-            </h3>
-            <span className="card-target">{exercise.target}</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1rem", color: completed ? "#6B7280" : "#F9FAFB", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
+            <div style={{ fontSize: "0.68rem", color: "#6B7280", fontFamily: "monospace" }}>{target}</div>
           </div>
         </div>
-        <div className="card-right">
-          <span className="card-sets">{exercise.sets}</span>
-          <span className="card-chevron">{expanded ? "▲" : "▼"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+          <span style={{ fontSize: "0.68rem", color: "#6B7280", fontFamily: "monospace" }}>{ex.sets}×{ex.reps}</span>
+          {!ex.isDefault && <button onClick={e => { e.stopPropagation(); onDelete(ex.id); }} style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: "0.8rem", padding: "0 2px" }}>✕</button>}
+          <span style={{ fontSize: "0.6rem", color: "#4B5563" }}>{open ? "▲" : "▼"}</span>
         </div>
       </div>
-
-      {expanded && (
-        <div className="card-body">
-          <div className="why-box">
-            <span className="why-label">⚡ WHY IT MATTERS</span>
-            <p className="why-text">{exercise.why}</p>
+      {open && (
+        <div style={{ padding: "0 1rem 1rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+          <div style={{ background: "#1A2332", border: "1px solid #1E2D3D", borderRadius: 8, padding: "0.75rem" }}>
+            <div style={{ fontSize: "0.62rem", color: "#6B7280", fontFamily: "monospace", letterSpacing: "0.1em", marginBottom: "0.35rem" }}>⚡ {t.program.whyLabel}</div>
+            <div style={{ fontSize: "0.8rem", color: "#9CA3AF", lineHeight: 1.6 }}>{why}</div>
           </div>
-
-          {exercise.isVacuum && <VacuumTimer />}
-
-          <div className="video-section">
-            {!showVideo ? (
-              <button className="video-thumb" onClick={() => setShowVideo(true)}>
-                <div className="yt-placeholder">
-                  <div className="yt-play">▶</div>
-                  <span>Watch Demo</span>
-                </div>
+          {ex.isVacuum && <VacuumTimer t={t} />}
+          <div>
+            {!video ? (
+              <button onClick={() => setVideo(true)} style={{ width: "100%", background: "#1A2332", border: "1px dashed #1E2D3D", borderRadius: 10, height: 100, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                <div style={{ width: 40, height: 40, background: "#FF0000", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "0.9rem", paddingLeft: 3 }}>▶</div>
+                <span style={{ fontSize: "0.72rem", color: "#6B7280", fontFamily: "monospace" }}>{t.program.watchDemo}</span>
               </button>
             ) : (
-              <div className="video-embed">
-                <iframe
-                  src={`https://www.youtube.com/embed/${exercise.youtubeId}?autoplay=1`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title={exercise.title}
-                />
+              <div style={{ borderRadius: 10, overflow: "hidden", aspectRatio: "16/9" }}>
+                <iframe src={`https://www.youtube.com/embed/${ex.youtubeId}?autoplay=1`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title={title} style={{ width: "100%", height: "100%", border: "none" }} />
               </div>
             )}
           </div>
-
-          {exercise.hasSpringCounter && (
-            <SpringCounter
-              exerciseId={exercise.id}
-              value={springs[exercise.id] || 0}
-              onChange={onSpringChange}
-            />
+          {ex.hasSpring && (
+            <div style={{ background: "#1A2332", border: "1px solid #1E2D3D", borderRadius: 10, padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+              <span style={{ fontSize: "0.72rem", color: "#9CA3AF", fontFamily: "monospace" }}>{t.program.springsToday}</span>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => onSpring(ex.id, n)}
+                    style={{ flex: 1, height: 36, background: springs[ex.id] === n ? ex.color : "#1F2937", border: `1px solid ${springs[ex.id] === n ? ex.color : "#374151"}`, borderRadius: 7, color: springs[ex.id] === n ? "#000" : "#9CA3AF", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1rem", cursor: "pointer", transition: "all 0.15s" }}>{n}</button>
+                ))}
+              </div>
+              <span style={{ fontSize: "0.65rem", color: "#6B7280", fontFamily: "monospace" }}>
+                {springs[ex.id] ? `${springs[ex.id]} ${t.program.logged}` : t.program.tapToLog}
+              </span>
+            </div>
           )}
         </div>
       )}
@@ -327,476 +195,393 @@ function ExerciseCard({ exercise, completed, springs, onToggle, onSpringChange }
   );
 }
 
-// ─── PROGRESS BAR ─────────────────────────────────────────────────────────────
+// ─── ADD MODAL ────────────────────────────────────────────────────────────────
+function AddModal({ t, onSave, onClose }) {
+  const [form, setForm] = useState({ name: "", target: "", sets: 3, reps: 12, why: "" });
+  const colors = ["#00D4AA", "#FF6B35", "#A78BFA", "#F59E0B", "#60A5FA", "#F472B6"];
+  const [color, setColor] = useState(colors[0]);
 
-function ProgressBar({ value, max, color }) {
-  const pct = max === 0 ? 0 : Math.round((value / max) * 100);
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    onSave({ id: "custom_" + Date.now(), title: { en: form.name, tr: form.name }, target: { en: form.target, tr: form.target }, why: { en: form.why, tr: form.why }, sets: Number(form.sets), reps: Number(form.reps), youtubeId: "dQw4w9WgXcQ", hasSpring: true, color, isDefault: false });
+  };
+
   return (
-    <div className="progress-track">
-      <div
-        className="progress-fill"
-        style={{ width: `${pct}%`, background: color, transition: "width 0.5s cubic-bezier(.4,0,.2,1)" }}
-      />
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: "16px 16px 0 0", padding: "1.5rem", width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: "1.3rem" }}>{t.addModal.title}</div>
+        {[["name", t.addModal.name], ["target", t.addModal.target], ["why", t.addModal.why]].map(([k, label]) => (
+          <div key={k}>
+            <div style={{ fontSize: "0.68rem", color: "#6B7280", fontFamily: "monospace", marginBottom: "0.3rem" }}>{label}</div>
+            <input value={form[k]} onChange={e => setForm(p => ({ ...p, [k]: e.target.value }))}
+              style={{ width: "100%", background: "#1A2332", border: "1px solid #1E2D3D", borderRadius: 8, padding: "0.6rem 0.75rem", color: "#F9FAFB", fontSize: "0.85rem", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: "1rem" }}>
+          {[["sets", t.addModal.sets], ["reps", t.addModal.reps]].map(([k, label]) => (
+            <div key={k} style={{ flex: 1 }}>
+              <div style={{ fontSize: "0.68rem", color: "#6B7280", fontFamily: "monospace", marginBottom: "0.3rem" }}>{label}</div>
+              <input type="number" value={form[k]} onChange={e => setForm(p => ({ ...p, [k]: e.target.value }))}
+                style={{ width: "100%", background: "#1A2332", border: "1px solid #1E2D3D", borderRadius: 8, padding: "0.6rem 0.75rem", color: "#F9FAFB", fontSize: "0.85rem", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          {colors.map(c => <button key={c} onClick={() => setColor(c)} style={{ width: 26, height: 26, borderRadius: "50%", background: c, border: color === c ? "3px solid #fff" : "2px solid transparent", cursor: "pointer" }} />)}
+        </div>
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "0.7rem", background: "#1A2332", border: "1px solid #1E2D3D", borderRadius: 8, color: "#9CA3AF", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1rem", cursor: "pointer" }}>{t.addModal.cancel}</button>
+          <button onClick={handleSave} style={{ flex: 2, padding: "0.7rem", background: "#00D4AA", border: "none", borderRadius: 8, color: "#000", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: "1rem", cursor: "pointer" }}>{t.addModal.save}</button>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
-
-function Dashboard({ storage }) {
-  const coreTotal = EXERCISES.core.length;
-  const upperTotal = EXERCISES.upper.length;
-  const coreDone = EXERCISES.core.filter((e) => storage.completed[e.id]).length;
-  const upperDone = EXERCISES.upper.filter((e) => storage.completed[e.id]).length;
-  const totalDone = coreDone + upperDone;
-  const totalAll = coreTotal + upperTotal;
+// ─── CALENDAR VIEW ────────────────────────────────────────────────────────────
+function CalendarView({ t, lang, calendarLog }) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const completed = Object.values(calendarLog).filter(v => v === "done").length;
+  const total = Object.keys(calendarLog).length;
+  const rate = total === 0 ? 0 : Math.round((completed / total) * 100);
+  const monthName = today.toLocaleDateString(lang === "tr" ? "tr-TR" : "en-US", { month: "long", year: "numeric" });
 
   return (
-    <div className="dashboard">
-      <div className="dash-stat-row">
-        <div className="dash-stat">
-          <div className="dash-stat-val" style={{ color: "#FF6B35" }}>{storage.streak}</div>
-          <div className="dash-stat-label">Day Streak 🔥</div>
-        </div>
-        <div className="dash-stat center-stat">
-          <div className="dash-big-ring">
-            <svg viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="34" fill="none" stroke="#1F2937" strokeWidth="6" />
-              <circle
-                cx="40" cy="40" r="34"
-                fill="none"
-                stroke={totalDone === totalAll ? "#00D4AA" : "#A78BFA"}
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={`${(totalDone / totalAll) * 213.6} 213.6`}
-                transform="rotate(-90 40 40)"
-                style={{ transition: "stroke-dasharray 0.5s ease" }}
-              />
-            </svg>
-            <div className="ring-label">
-              <span className="ring-num">{totalDone}</span>
-              <span className="ring-denom">/{totalAll}</span>
-            </div>
+    <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: 16, padding: "1.25rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1.1rem", textTransform: "capitalize" }}>{monthName}</div>
+        <div style={{ fontFamily: "monospace", fontSize: "0.72rem", color: "#00D4AA" }}>{rate}% {t.calendar.completionRate}</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.25rem", marginBottom: "0.4rem" }}>
+        {["S","M","T","W","T","F","S"].map((d, i) => <div key={i} style={{ textAlign: "center", fontSize: "0.58rem", color: "#6B7280", fontFamily: "monospace", padding: "0.15rem 0" }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.25rem" }}>
+        {Array.from({ length: firstDay }).map((_, i) => <div key={"e" + i} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
+          const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const isToday = d === today.getDate();
+          const status = calendarLog[key];
+          let bg = "#1A2332", col = "#6B7280", border = "1px solid #1E2D3D";
+          if (status === "done") { bg = "#00D4AA20"; col = "#00D4AA"; border = "1px solid #00D4AA40"; }
+          if (isToday) border = "2px solid #A78BFA";
+          return (
+            <div key={d} style={{ aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", background: bg, border, borderRadius: 6, fontSize: "0.7rem", fontFamily: "monospace", color: col, fontWeight: isToday ? 700 : 400 }}>{d}</div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem" }}>
+        {[["#00D4AA", t.calendar.completed], ["#4B5563", t.calendar.rest]].map(([c, label]) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.62rem", color: "#6B7280", fontFamily: "monospace" }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{label}
           </div>
-          <div className="dash-stat-label">Today's Progress</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── PHOTOS VIEW ──────────────────────────────────────────────────────────────
+function PhotosView({ t, photos, onUpload }) {
+  const today = getTodayKey();
+  const fileRef = useRef();
+  const sortedDates = Object.keys(photos).sort((a, b) => b.localeCompare(a));
+  const todayPhoto = photos[today];
+  const prevPhoto = sortedDates.find(d => d !== today);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => onUpload(today, ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: 16, padding: "1.25rem" }}>
+        <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+        <button onClick={() => fileRef.current.click()}
+          style={{ width: "100%", background: todayPhoto ? "transparent" : "#1A2332", border: todayPhoto ? "none" : "2px dashed #374151", borderRadius: 12, padding: todayPhoto ? 0 : "2rem 1rem", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", overflow: "hidden" }}>
+          {todayPhoto ? (
+            <div style={{ position: "relative", width: "100%" }}>
+              <img src={todayPhoto} alt="today" style={{ width: "100%", borderRadius: 12, display: "block", maxHeight: 320, objectFit: "cover" }} />
+              <div style={{ position: "absolute", top: 8, left: 8, background: "#00D4AA", color: "#000", fontSize: "0.62rem", fontFamily: "monospace", fontWeight: 700, padding: "3px 8px", borderRadius: 20 }}>{t.photos.today}</div>
+              <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.7)", color: "#9CA3AF", fontSize: "0.62rem", fontFamily: "monospace", padding: "3px 8px", borderRadius: 20 }}>tap to change</div>
+            </div>
+          ) : (
+            <>
+              <span style={{ fontSize: "2.5rem" }}>📸</span>
+              <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, color: "#9CA3AF", fontSize: "1rem" }}>{t.photos.upload}</span>
+              <span style={{ fontSize: "0.72rem", color: "#6B7280", fontFamily: "monospace" }}>{t.photos.uploadHint}</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {prevPhoto && todayPhoto && (
+        <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: 16, padding: "1.25rem" }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1rem", marginBottom: "0.75rem" }}>{t.photos.compare}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            {[[photos[prevPhoto], t.photos.previous + " · " + prevPhoto], [todayPhoto, t.photos.today + " · " + today]].map(([src, label]) => (
+              <div key={label}>
+                <img src={src} alt={label} style={{ width: "100%", borderRadius: 10, display: "block", aspectRatio: "3/4", objectFit: "cover" }} />
+                <div style={{ fontSize: "0.6rem", color: "#6B7280", fontFamily: "monospace", marginTop: "0.3rem", textAlign: "center" }}>{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="dash-stat">
-          <div className="dash-stat-val" style={{ color: "#00D4AA" }}>{totalAll - totalDone}</div>
-          <div className="dash-stat-label">Remaining</div>
+      )}
+
+      {sortedDates.length > 0 && (
+        <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: 16, padding: "1.25rem" }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1rem", marginBottom: "0.75rem" }}>All Photos ({sortedDates.length})</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.4rem" }}>
+            {sortedDates.map(d => (
+              <div key={d} style={{ position: "relative" }}>
+                <img src={photos[d]} alt={d} style={{ width: "100%", borderRadius: 8, display: "block", aspectRatio: "1", objectFit: "cover" }} />
+                <div style={{ position: "absolute", bottom: 3, left: 3, right: 3, fontSize: "0.52rem", color: "#fff", fontFamily: "monospace", background: "rgba(0,0,0,0.65)", padding: "2px 4px", borderRadius: 4, textAlign: "center" }}>{d.slice(5)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BADGES VIEW ──────────────────────────────────────────────────────────────
+function BadgesView({ t, lang, data }) {
+  const stats = { streak: data.streak, totalCompleted: data.totalCompleted, photoCount: data.photoCount, customExCount: data.customExCount, completedDay1: data.completedDay1, completedDay2: data.completedDay2 };
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+      {BADGE_DEFS.map(b => {
+        const earned = b.check(stats);
+        return (
+          <div key={b.id} style={{ background: "#111827", border: `1px solid ${earned ? "#00D4AA40" : "#1E2D3D"}`, borderRadius: 14, padding: "1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem", opacity: earned ? 1 : 0.45, transition: "all 0.3s", boxShadow: earned ? "0 0 20px #00D4AA10" : "none" }}>
+            <span style={{ fontSize: "2rem", filter: earned ? "none" : "grayscale(1)" }}>{b.icon}</span>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "0.9rem", textAlign: "center", color: earned ? "#F9FAFB" : "#6B7280" }}>{lang === "tr" ? b.tr : b.en}</div>
+            <div style={{ fontSize: "0.62rem", color: "#6B7280", fontFamily: "monospace", textAlign: "center", lineHeight: 1.4 }}>{lang === "tr" ? b.descTr : b.descEn}</div>
+            {earned && <span style={{ fontSize: "0.58rem", color: "#00D4AA", fontFamily: "monospace", background: "#00D4AA15", padding: "2px 8px", borderRadius: 20 }}>{t.badges.earned} ✓</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── DASHBOARD VIEW ───────────────────────────────────────────────────────────
+function DashboardView({ t, data }) {
+  const today = getTodayKey();
+  const dayOfWeek = new Date().getDay();
+  const activeDay = dayOfWeek % 2 === 0 ? "day2" : "day1";
+  const exercises = data.program[activeDay];
+  const done = exercises.filter(e => data.completed[today]?.[e.id]).length;
+  const total = exercises.length;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  const C = 2 * Math.PI * 40;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: 16, padding: "1.25rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: "2.5rem", fontWeight: 800, color: "#FF6B35", lineHeight: 1 }}>{data.streak}</div>
+            <div style={{ fontSize: "0.62rem", color: "#6B7280", fontFamily: "monospace", textAlign: "center" }}>🔥 {t.dashboard.streak}</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
+            <div style={{ position: "relative", width: 84, height: 84 }}>
+              <svg viewBox="0 0 88 88" style={{ width: "100%", height: "100%" }}>
+                <circle cx="44" cy="44" r="40" fill="none" stroke="#1F2937" strokeWidth="6" />
+                <circle cx="44" cy="44" r="40" fill="none" stroke={pct === 100 ? "#00D4AA" : "#A78BFA"} strokeWidth="6"
+                  strokeLinecap="round" strokeDasharray={`${(pct / 100) * C} ${C}`} transform="rotate(-90 44 44)"
+                  style={{ transition: "stroke-dasharray 0.5s ease" }} />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: "1.5rem", lineHeight: 1 }}>{done}<span style={{ fontSize: "0.8rem", color: "#6B7280" }}>/{total}</span></span>
+              </div>
+            </div>
+            <div style={{ fontSize: "0.62rem", color: "#6B7280", fontFamily: "monospace" }}>{t.dashboard.today}</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: "2.5rem", fontWeight: 800, color: "#00D4AA", lineHeight: 1 }}>{data.totalCompleted}</div>
+            <div style={{ fontSize: "0.62rem", color: "#6B7280", fontFamily: "monospace", textAlign: "center" }}>✓ Total</div>
+          </div>
+        </div>
+        <div style={{ background: "#1A2332", borderRadius: 8, height: 5, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#00D4AA" : "#A78BFA", borderRadius: 8, transition: "width 0.5s ease" }} />
+        </div>
+        <div style={{ marginTop: "0.5rem", fontSize: "0.65rem", color: "#6B7280", fontFamily: "monospace", textAlign: "center" }}>
+          {activeDay === "day1" ? t.program.day1 : t.program.day2}
         </div>
       </div>
 
-      <div className="module-bars">
-        <div className="module-bar-item">
-          <div className="module-bar-label">
-            <span>Core & Posture</span>
-            <span style={{ color: "#00D4AA" }}>{coreDone}/{coreTotal}</span>
-          </div>
-          <ProgressBar value={coreDone} max={coreTotal} color="#00D4AA" />
-        </div>
-        <div className="module-bar-item">
-          <div className="module-bar-label">
-            <span>Upper Body Power</span>
-            <span style={{ color: "#A78BFA" }}>{upperDone}/{upperTotal}</span>
-          </div>
-          <ProgressBar value={upperDone} max={upperTotal} color="#A78BFA" />
+      <div style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: 16, padding: "1.25rem" }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1rem", marginBottom: "0.75rem" }}>Today's Exercises</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {exercises.map(ex => {
+            const isDone = !!data.completed[today]?.[ex.id];
+            const title = typeof ex.title === "object" ? ex.title.en : ex.title;
+            return (
+              <div key={ex.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.75rem", background: "#1A2332", borderRadius: 8, opacity: isDone ? 0.6 : 1 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: ex.color, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: "0.82rem", color: isDone ? "#6B7280" : "#F9FAFB", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, textDecoration: isDone ? "line-through" : "none" }}>{title}</span>
+                <span style={{ fontSize: "0.65rem", color: "#6B7280", fontFamily: "monospace" }}>{ex.sets}×{ex.reps}</span>
+                {isDone && <span style={{ fontSize: "0.75rem", color: "#00D4AA" }}>✓</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── PROGRAM VIEW ─────────────────────────────────────────────────────────────
+function ProgramView({ t, lang, data, onToggle, onSpring, onAddEx, onDeleteEx }) {
+  const [activeDay, setActiveDay] = useState("day1");
+  const [showModal, setShowModal] = useState(false);
+  const today = getTodayKey();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+        {["day1", "day2"].map(d => (
+          <button key={d} onClick={() => setActiveDay(d)}
+            style={{ background: activeDay === d ? "#1A2332" : "#111827", border: `1px solid ${activeDay === d ? "#A78BFA" : "#1E2D3D"}`, borderRadius: 10, padding: "0.7rem", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "0.85rem", color: activeDay === d ? "#F9FAFB" : "#6B7280", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.04em", transition: "all 0.2s" }}>
+            {d === "day1" ? t.program.day1 : t.program.day2}
+          </button>
+        ))}
+      </div>
+
+      {data.program[activeDay].map(ex => (
+        <ExerciseCard key={ex.id} ex={ex} lang={lang} t={t}
+          completed={!!data.completed[today]?.[ex.id]}
+          springs={data.springs[today] || {}}
+          onToggle={(id) => onToggle(activeDay, id)}
+          onSpring={(id, val) => onSpring(today, id, val)}
+          onDelete={(id) => onDeleteEx(activeDay, id)} />
+      ))}
+
+      <button onClick={() => setShowModal(true)}
+        style={{ background: "transparent", border: "2px dashed #1E2D3D", borderRadius: 12, padding: "0.85rem", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: "1rem", color: "#4B5563", cursor: "pointer", letterSpacing: "0.05em" }}>
+        {t.program.addExercise}
+      </button>
+
+      {showModal && <AddModal t={t} onSave={(ex) => { onAddEx(activeDay, ex); setShowModal(false); }} onClose={() => setShowModal(false)} />}
     </div>
   );
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-
 export default function App() {
-  const [storage, setStorage] = useState(() => loadStorage());
-  const [activeTab, setActiveTab] = useState("core");
+  const [data, setData] = useState(() => loadData());
+  const [tab, setTab] = useState("dashboard");
+  const lang = data.lang;
+  const t = T[lang];
 
-  const updateStorage = useCallback((newData) => {
-    setStorage(newData);
-    saveStorage(newData);
+  const update = useCallback((fn) => {
+    setData(prev => { const next = fn(prev); save(next); return next; });
   }, []);
 
-  const handleToggle = useCallback((id) => {
-    setStorage((prev) => {
-      const completed = { ...prev.completed, [id]: !prev.completed[id] };
-      const allDone = ALL_EXERCISE_IDS.every((eid) => completed[eid]);
-      const today = getTodayKey();
+  const handleToggle = (day, id) => {
+    const today = getTodayKey();
+    update(prev => {
+      const todayMap = { ...(prev.completed[today] || {}) };
+      todayMap[id] = !todayMap[id];
+      const completed = { ...prev.completed, [today]: todayMap };
 
-      let streak = prev.streak;
-      let lastCompletedDate = prev.lastCompletedDate;
+      const allIds = [...prev.program.day1, ...prev.program.day2].map(e => e.id);
+      const allDone = allIds.every(eid => completed[today]?.[eid]);
+      const day1Done = prev.program.day1.every(e => completed[today]?.[e.id]);
+      const day2Done = prev.program.day2.every(e => completed[today]?.[e.id]);
 
-      if (allDone && lastCompletedDate !== today) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+      let { streak, totalCompleted, calendarLog, lastDate } = prev;
+      calendarLog = { ...calendarLog };
+
+      if (allDone && calendarLog[today] !== "done") {
+        calendarLog[today] = "done";
+        totalCompleted += 1;
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
         const yKey = yesterday.toISOString().split("T")[0];
-        streak = (lastCompletedDate === yKey ? streak : 0) + 1;
-        lastCompletedDate = today;
+        streak = (lastDate === yKey || lastDate === today) ? streak + 1 : 1;
+        lastDate = today;
       }
 
-      const next = { ...prev, completed, streak, lastCompletedDate };
-      saveStorage(next);
-      return next;
+      const next = { ...prev, completed, streak, totalCompleted, calendarLog, lastDate, completedDay1: day1Done, completedDay2: day2Done };
+      const stats = { streak: next.streak, totalCompleted: next.totalCompleted, photoCount: next.photoCount, customExCount: next.customExCount, completedDay1: next.completedDay1, completedDay2: next.completedDay2 };
+      const newBadges = BADGE_DEFS.filter(b => b.check(stats) && !next.earnedBadges.includes(b.id)).map(b => b.id);
+      return { ...next, earnedBadges: [...next.earnedBadges, ...newBadges] };
     });
-  }, []);
+  };
 
-  const handleSpringChange = useCallback((id, val) => {
-    setStorage((prev) => {
-      const next = { ...prev, springs: { ...prev.springs, [id]: val } };
-      saveStorage(next);
-      return next;
-    });
-  }, []);
+  const handleSpring = (date, id, val) => update(prev => ({ ...prev, springs: { ...prev.springs, [date]: { ...(prev.springs[date] || {}), [id]: val } } }));
+  const handleAddEx = (day, ex) => update(prev => ({ ...prev, program: { ...prev.program, [day]: [...prev.program[day], ex] }, customExCount: prev.customExCount + 1 }));
+  const handleDeleteEx = (day, id) => update(prev => ({ ...prev, program: { ...prev.program, [day]: prev.program[day].filter(e => e.id !== id) } }));
+  const handlePhoto = (date, src) => update(prev => {
+    const photos = { ...prev.photos, [date]: src };
+    const photoCount = Object.keys(photos).length;
+    const stats = { streak: prev.streak, totalCompleted: prev.totalCompleted, photoCount, customExCount: prev.customExCount, completedDay1: prev.completedDay1, completedDay2: prev.completedDay2 };
+    const newBadges = BADGE_DEFS.filter(b => b.check(stats) && !prev.earnedBadges.includes(b.id)).map(b => b.id);
+    return { ...prev, photos, photoCount, earnedBadges: [...prev.earnedBadges, ...newBadges] };
+  });
 
-  const currentExercises = EXERCISES[activeTab];
+  const navItems = [
+    { id: "dashboard", icon: "⚡", label: t.nav.dashboard },
+    { id: "program", icon: "📋", label: t.nav.program },
+    { id: "calendar", icon: "📅", label: t.nav.calendar },
+    { id: "photos", icon: "📸", label: t.nav.photos },
+    { id: "badges", icon: "🏆", label: t.nav.badges },
+  ];
 
   return (
     <>
-      <style>{CSS}</style>
-      <div className="app">
-        {/* Header */}
-        <header className="app-header">
-          <div className="header-inner">
-            <div className="logo-block">
-              <div className="logo-icon">⚡</div>
-              <div>
-                <h1 className="logo-title">POSTURE<span>&</span>POWER</h1>
-                <p className="logo-sub">APT Correction · Back Pain Relief · Chest Expander</p>
-              </div>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0A0D12; color: #F9FAFB; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0A0D12; }
+        ::-webkit-scrollbar-thumb { background: #1E2D3D; border-radius: 4px; }
+        input { font-family: 'DM Sans', sans-serif; }
+      `}</style>
+
+      <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: "5rem" }}>
+        <div style={{ background: "#0D1117", borderBottom: "1px solid #1E2D3D", padding: "1rem 1.25rem", position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <span style={{ fontSize: "1.6rem", filter: "drop-shadow(0 0 8px #FF6B35)" }}>⚡</span>
+            <div>
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: "1.3rem", letterSpacing: "0.06em", lineHeight: 1 }}>{t.appTitle}</div>
+              <div style={{ fontSize: "0.58rem", color: "#6B7280", fontFamily: "monospace", letterSpacing: "0.04em" }}>{t.appSub}</div>
             </div>
-            <div className="header-date">{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</div>
           </div>
-        </header>
-
-        <main className="app-main">
-          {/* Dashboard */}
-          <Dashboard storage={storage} />
-
-          {/* Module Tabs */}
-          <div className="tabs">
-            <button className={`tab-btn ${activeTab === "core" ? "active" : ""}`} onClick={() => setActiveTab("core")}>
-              <span className="tab-icon">🎯</span> Core & Posture
-            </button>
-            <button className={`tab-btn ${activeTab === "upper" ? "active" : ""}`} onClick={() => setActiveTab("upper")}>
-              <span className="tab-icon">💪</span> Upper Body Power
-            </button>
-          </div>
-
-          {/* Module Description */}
-          <div className="module-desc">
-            {activeTab === "core" ? (
-              <><strong>Core & Posture</strong> — Fix anterior pelvic tilt, eliminate lower back pain, and build the foundation your spine deserves.</>
-            ) : (
-              <><strong>Upper Body Power</strong> — Chest expander movements to build real strength while correcting forward head posture and rounded shoulders.</>
-            )}
-          </div>
-
-          {/* Exercise List */}
-          <div className="exercise-list">
-            {currentExercises.map((ex) => (
-              <ExerciseCard
-                key={ex.id}
-                exercise={ex}
-                completed={!!storage.completed[ex.id]}
-                springs={storage.springs}
-                onToggle={handleToggle}
-                onSpringChange={handleSpringChange}
-              />
-            ))}
-          </div>
-
-          {/* Reset */}
-          <button className="reset-btn" onClick={() => {
-            const fresh = { date: getTodayKey(), completed: {}, springs: storage.springs, streak: storage.streak, lastCompletedDate: storage.lastCompletedDate };
-            updateStorage(fresh);
-          }}>
-            ↺ Reset Today's Session
+          <button onClick={() => update(p => ({ ...p, lang: p.lang === "en" ? "tr" : "en" }))}
+            style={{ background: "#111827", border: "1px solid #1E2D3D", borderRadius: 8, padding: "0.4rem 0.75rem", fontFamily: "monospace", fontSize: "0.78rem", color: "#9CA3AF", cursor: "pointer", fontWeight: 600 }}>
+            {lang === "en" ? "🇹🇷 TR" : "🇬🇧 EN"}
           </button>
-        </main>
+        </div>
+
+        <div style={{ padding: "1.25rem" }}>
+          {tab === "dashboard" && <DashboardView t={t} data={data} />}
+          {tab === "program" && <ProgramView t={t} lang={lang} data={data} onToggle={handleToggle} onSpring={handleSpring} onAddEx={handleAddEx} onDeleteEx={handleDeleteEx} />}
+          {tab === "calendar" && <CalendarView t={t} lang={lang} calendarLog={data.calendarLog} />}
+          {tab === "photos" && <PhotosView t={t} photos={data.photos} onUpload={handlePhoto} />}
+          {tab === "badges" && <BadgesView t={t} lang={lang} data={data} />}
+        </div>
+
+        <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#0D1117", borderTop: "1px solid #1E2D3D", display: "flex", zIndex: 100 }}>
+          {navItems.map(n => (
+            <button key={n.id} onClick={() => setTab(n.id)}
+              style={{ flex: 1, padding: "0.65rem 0.25rem 0.75rem", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem", borderTop: tab === n.id ? "2px solid #A78BFA" : "2px solid transparent", transition: "all 0.15s" }}>
+              <span style={{ fontSize: "1.1rem" }}>{n.icon}</span>
+              <span style={{ fontSize: "0.52rem", fontFamily: "monospace", color: tab === n.id ? "#A78BFA" : "#4B5563", letterSpacing: "0.04em" }}>{n.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </>
   );
 }
-
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0A0D12;
-    --surface: #111827;
-    --surface2: #1A2332;
-    --surface3: #1F2D3D;
-    --border: #1E2D3D;
-    --text: #F9FAFB;
-    --text2: #9CA3AF;
-    --text3: #6B7280;
-    --green: #00D4AA;
-    --orange: #FF6B35;
-    --purple: #A78BFA;
-    --yellow: #F59E0B;
-    --font-display: 'Barlow Condensed', sans-serif;
-    --font-mono: 'DM Mono', monospace;
-    --font-body: 'DM Sans', sans-serif;
-  }
-
-  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
-
-  .app { max-width: 680px; margin: 0 auto; padding-bottom: 3rem; }
-
-  /* HEADER */
-  .app-header {
-    background: linear-gradient(135deg, #0D1117 0%, #111827 100%);
-    border-bottom: 1px solid var(--border);
-    padding: 1.2rem 1.5rem;
-    position: sticky; top: 0; z-index: 50;
-    backdrop-filter: blur(10px);
-  }
-  .header-inner { display: flex; align-items: center; justify-content: space-between; }
-  .logo-block { display: flex; align-items: center; gap: 0.75rem; }
-  .logo-icon { font-size: 1.8rem; filter: drop-shadow(0 0 8px #FF6B35); }
-  .logo-title {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    line-height: 1;
-    text-transform: uppercase;
-  }
-  .logo-title span { color: var(--orange); margin: 0 0.1em; }
-  .logo-sub { font-size: 0.68rem; color: var(--text3); font-family: var(--font-mono); letter-spacing: 0.04em; margin-top: 2px; }
-  .header-date { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text3); }
-
-  /* MAIN */
-  .app-main { padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
-
-  /* DASHBOARD */
-  .dashboard {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.25rem;
-  }
-  .dash-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
-  .dash-stat { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
-  .dash-stat-val { font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; line-height: 1; }
-  .dash-stat-label { font-size: 0.7rem; color: var(--text3); font-family: var(--font-mono); text-align: center; }
-  .center-stat { align-items: center; }
-  .dash-big-ring { position: relative; width: 80px; height: 80px; }
-  .dash-big-ring svg { width: 100%; height: 100%; }
-  .ring-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .ring-num { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; }
-  .ring-denom { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text3); }
-
-  .module-bars { display: flex; flex-direction: column; gap: 0.65rem; }
-  .module-bar-item { display: flex; flex-direction: column; gap: 0.3rem; }
-  .module-bar-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text2); font-family: var(--font-mono); }
-  .progress-track { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 999px; }
-
-  /* TABS */
-  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-  .tab-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
-    font-family: var(--font-display);
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex; align-items: center; gap: 0.5rem; justify-content: center;
-  }
-  .tab-btn:hover { border-color: var(--purple); color: var(--text); }
-  .tab-btn.active {
-    background: linear-gradient(135deg, #1A2332, #1F2D3D);
-    border-color: var(--purple);
-    color: var(--text);
-    box-shadow: 0 0 20px rgba(167,139,250,0.15);
-  }
-  .tab-icon { font-size: 1rem; }
-
-  .module-desc {
-    font-size: 0.82rem;
-    color: var(--text3);
-    padding: 0.75rem 1rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    line-height: 1.5;
-  }
-  .module-desc strong { color: var(--text2); }
-
-  /* EXERCISE LIST */
-  .exercise-list { display: flex; flex-direction: column; gap: 0.75rem; }
-
-  /* EXERCISE CARD */
-  .exercise-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--card-accent, var(--green));
-    border-radius: 12px;
-    overflow: hidden;
-    transition: box-shadow 0.2s;
-  }
-  .exercise-card.completed { opacity: 0.7; }
-  .exercise-card:hover { box-shadow: 0 0 24px rgba(0,212,170,0.08); }
-
-  .card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0.9rem 1rem;
-    cursor: pointer;
-    gap: 0.75rem;
-  }
-  .card-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
-  .card-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-
-  .check-btn {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    border: 2px solid var(--btn-color, var(--green));
-    background: transparent;
-    color: var(--btn-color);
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: all 0.15s;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .check-btn.checked { background: var(--btn-color); color: #000; }
-  .check-btn:hover { transform: scale(1.1); }
-
-  .card-info { min-width: 0; }
-  .card-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card-target { font-size: 0.7rem; color: var(--text3); font-family: var(--font-mono); }
-  .card-sets { font-size: 0.7rem; color: var(--text3); font-family: var(--font-mono); white-space: nowrap; }
-  .card-chevron { font-size: 0.65rem; color: var(--text3); }
-
-  .card-body { padding: 0 1rem 1rem; display: flex; flex-direction: column; gap: 1rem; }
-
-  .why-box {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.85rem;
-  }
-  .why-label { display: block; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text3); letter-spacing: 0.1em; margin-bottom: 0.4rem; }
-  .why-text { font-size: 0.82rem; color: var(--text2); line-height: 1.6; }
-
-  /* VIDEO */
-  .video-section { width: 100%; }
-  .video-thumb {
-    width: 100%; background: var(--surface3);
-    border: 1px dashed var(--border);
-    border-radius: 10px;
-    height: 120px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .video-thumb:hover { border-color: var(--orange); background: #1A1F2E; }
-  .yt-placeholder { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-  .yt-play {
-    width: 44px; height: 44px; background: #FF0000;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 1rem; color: white; padding-left: 3px;
-  }
-  .yt-placeholder span { font-size: 0.78rem; color: var(--text3); font-family: var(--font-mono); }
-  .video-embed { border-radius: 10px; overflow: hidden; aspect-ratio: 16/9; }
-  .video-embed iframe { width: 100%; height: 100%; border: none; }
-
-  /* SPRING COUNTER */
-  .spring-counter {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 0.85rem;
-    display: flex; flex-direction: column; gap: 0.5rem;
-  }
-  .spring-label { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text2); }
-  .spring-controls { display: flex; gap: 0.5rem; }
-  .spring-btn {
-    flex: 1; height: 38px;
-    background: var(--surface3);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text3);
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .spring-btn:hover { border-color: var(--green); color: var(--green); }
-  .spring-btn.active { background: var(--green); border-color: var(--green); color: #000; }
-  .spring-hint { font-size: 0.68rem; color: var(--text3); font-family: var(--font-mono); }
-
-  /* VACUUM TIMER */
-  .vacuum-timer-card {
-    background: var(--surface2);
-    border: 1px solid #FF6B3530;
-    border-radius: 12px;
-    padding: 1rem;
-    display: flex; flex-direction: column; gap: 0.85rem;
-  }
-  .vacuum-header { display: flex; align-items: center; gap: 0.75rem; }
-  .vacuum-icon { font-size: 1.75rem; }
-  .vacuum-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; }
-  .vacuum-sub { font-size: 0.7rem; color: var(--text3); font-family: var(--font-mono); }
-
-  .vacuum-ring-container { position: relative; width: 120px; height: 120px; align-self: center; }
-  .vacuum-svg { width: 100%; height: 100%; }
-  .vacuum-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .vacuum-time { font-family: var(--font-display); font-size: 2.25rem; font-weight: 800; line-height: 1; }
-  .vacuum-unit { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text3); }
-
-  .vacuum-phase-label { text-align: center; font-family: var(--font-display); font-size: 1rem; font-weight: 700; letter-spacing: 0.05em; min-height: 1.4rem; }
-
-  .vacuum-btn-row { display: flex; gap: 0.5rem; }
-  .vac-btn {
-    flex: 1; padding: 0.6rem 1rem;
-    border-radius: 8px;
-    border: none; cursor: pointer;
-    font-family: var(--font-display); font-size: 0.95rem; font-weight: 700;
-    transition: all 0.15s;
-  }
-  .vac-btn-start { background: var(--orange); color: #000; }
-  .vac-btn-start:hover { background: #FF8455; }
-  .vac-btn-pause { background: #374151; color: var(--text); }
-  .vac-btn-reset { background: var(--surface3); color: var(--text2); border: 1px solid var(--border); flex: 0.5; }
-  .vac-btn-reset:hover { border-color: var(--text3); }
-
-  .vacuum-steps { display: flex; flex-direction: column; gap: 0.35rem; }
-  .vacuum-step { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text3); }
-  .step-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-
-  /* RESET */
-  .reset-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text3);
-    border-radius: 8px;
-    padding: 0.6rem 1rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    cursor: pointer;
-    align-self: center;
-    transition: all 0.15s;
-  }
-  .reset-btn:hover { border-color: var(--text2); color: var(--text2); }
-
-  @media (max-width: 420px) {
-    .logo-title { font-size: 1.2rem; }
-    .logo-sub { display: none; }
-    .dash-stat-val { font-size: 2rem; }
-    .spring-btn { height: 34px; }
-  }
-`;
